@@ -58,14 +58,15 @@ Sparse.prototype.put = function (n, buf, opts, cb) {
   }
   if (!cb) cb = noop
   if (buf.length < self.size) {
-    buf = Buffer.concat([ buf, self.zeros.slice(0, self.size - buf.length)  ])
+    buf = Buffer.concat([ buf, self.zeros.slice(0, self.size - buf.length) ])
   }
   self.lock('put', function (release) {
     self.store.get(0, function (err, hbuf) {
       if (err) return cb(err)
       if (hbuf.length === 0) {
         hbuf = Buffer(self.size)
-        hbuf.writeUInt32BE(1, 0) // next available chunk
+        hbuf.fill(0)
+        hbuf.writeUInt32BE(2, 0) // next available chunk
         hbuf.writeUInt32BE(0, 4) // left
         hbuf.writeUInt32BE(0, 8) // right
         hbuf.writeUInt32BE(n, 12) // src: n
@@ -76,11 +77,22 @@ Sparse.prototype.put = function (n, buf, opts, cb) {
           self.store.put(0, hbuf, release(cb))
         })
       }
+      var avail = hbuf.readUInt32BE(0)
+
       for (var i = 12; i <= hbuf.length - 8; i += 8) {
         var src = hbuf.readUInt32BE(i)
         var dst = hbuf.readUInt32BE(i+4)
-        if (dst === 0) break
-        if (src === n) return self.store.put(dst, buf, opts, release(cb))
+        if (dst === 0) {
+          hbuf.writeUInt32BE(avail+1, 0)
+          hbuf.writeUInt32BE(n, i)
+          hbuf.writeUInt32BE(avail, i+4)
+          return self.store.put(avail, buf, opts, function (err) {
+            if (err) return release(cb)(err)
+            self.store.put(0, hbuf, release(cb))
+          })
+        } else if (src === n) {
+          return self.store.put(dst, buf, opts, release(cb))
+        }
       }
       console.log('todo')
     })
