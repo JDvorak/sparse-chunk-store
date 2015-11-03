@@ -1,0 +1,40 @@
+{
+  "name": "sparse-chunk-store",
+  "version": "1.0.0",
+  "description": "populate and query a chunk store with sparse blocks",
+  "main": "index.js",
+  "directories": {
+    "example": "example",
+    "test": "test"
+  },
+  "dependencies": {
+    "inherits": "^2.0.1",
+    "lock": "^0.1.2",
+    "median": "0.0.2"
+  },
+  "devDependencies": {
+    "fd-chunk-store": "^1.1.0",
+    "tape": "^4.2.2"
+  },
+  "scripts": {
+    "test": "tape test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/substack/sparse-chunk-store.git"
+  },
+  "keywords": [
+    "chunk-store",
+    "sparse",
+    "block",
+    "bytes",
+    "binary",
+    "search"
+  ],
+  "author": "substack",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/substack/sparse-chunk-store/issues"
+  },
+  "homepage": "https://github.com/substack/sparse-chunk-store#readme"
+}
