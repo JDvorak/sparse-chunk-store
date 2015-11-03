@@ -61,41 +61,66 @@ Sparse.prototype.put = function (n, buf, opts, cb) {
     buf = Buffer.concat([ buf, self.zeros.slice(0, self.size - buf.length) ])
   }
   self.lock('put', function (release) {
-    self.store.get(0, function (err, hbuf) {
+    var index = 0
+    var avail = 0
+    var first = null
+    self.store.get(index, onget)
+
+    function onget (err, hbuf) {
       if (err) return cb(err)
       if (hbuf.length === 0) {
         hbuf = Buffer(self.size)
         hbuf.fill(0)
-        hbuf.writeUInt32BE(2, 0) // next available chunk
-        hbuf.writeUInt32BE(0, 4) // left
-        hbuf.writeUInt32BE(0, 8) // right
-        hbuf.writeUInt32BE(n, 12) // src: n
-        hbuf.writeUInt32BE(1, 16) // dst: 1
-
-        return self.store.put(1, buf, opts, function (err) {
-          if (err) return release(cb)(err)
-          self.store.put(0, hbuf, release(cb))
-        })
+        if (index === 0) {
+          hbuf.writeUInt32BE(2, 0) // next available chunk
+          hbuf.writeUInt32BE(0, 4) // left
+          hbuf.writeUInt32BE(0, 8) // right
+          avail = 2
+        } else {
+          hbuf.writeUInt32BE(0, 4) // left
+          hbuf.writeUInt32BE(0, 8) // right
+        }
+      } else if (index === 0) {
+        avail = hbuf.readUInt32BE(0)
       }
-      var avail = hbuf.readUInt32BE(0)
+      if (index === 0) first = hbuf
 
-      for (var i = 12; i <= hbuf.length - 8; i += 8) {
+      var items = []
+      for (var i = index === 0 ? 12 : 8; i <= hbuf.length - 8; i += 8) {
         var src = hbuf.readUInt32BE(i)
         var dst = hbuf.readUInt32BE(i+4)
         if (dst === 0) {
-          hbuf.writeUInt32BE(avail+1, 0)
+          first.writeUInt32BE(avail+1, 0)
           hbuf.writeUInt32BE(n, i)
           hbuf.writeUInt32BE(avail, i+4)
           return self.store.put(avail, buf, opts, function (err) {
             if (err) return release(cb)(err)
-            self.store.put(0, hbuf, release(cb))
+            self.store.put(0, first, function (err) {
+              if (err) return release(cb)(err)
+              self.store.put(index, hbuf, release(cb))
+            })
           })
         } else if (src === n) {
           return self.store.put(dst, buf, opts, release(cb))
         }
+        items.push(src)
       }
-      console.log('todo')
-    })
+
+      // allocate a new index chunk
+      var m = median(items)
+      var next = hbuf.readUInt32BE(n < m ? 4 : 8)
+      if (next) {
+        index = next
+        return self.store.get(index, onget)
+      }
+      index = avail++
+      first.writeUInt32BE(avail, 0)
+      first.writeUInt32BE(index, n < m ? 4 : 8)
+      self.store.put(0, first, function (err) {
+        if (err) release(cb)(err)
+        else self.store.get(index, onget)
+      })
+    }
   })
 }
 
