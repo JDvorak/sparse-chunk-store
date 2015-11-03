@@ -31,24 +31,19 @@ Sparse.prototype.get = function (n, opts, cb) {
     opts = {}
   }
   if (!cb) cb = noop
-  self._lookup(n, function (err, dst, buf, i, avail) {
-    if (err) return cb(err)
-    if (dst) self.store.get(dst, opts, cb)
-    else cb(null, buf0)
-  })
   ;(function get (ix) {
     self.store.get(ix, function onget (err, buf) {
       if (err) return cb(err)
       if (buf.length === 0) return cb(null, buf0)
       var items = []
-      for (var i = ix === 0 ? 12 : 8; i < buf.length; i += 8) {
-        var src = buf.readUInt16BE(i)
-        var dst = buf.readUInt16BE(i+4)
+      for (var i = ix === 0 ? 12 : 8; i <= buf.length - 8; i += 8) {
+        var src = buf.readUInt32BE(i)
+        var dst = buf.readUInt32BE(i+4)
         if (dst === 0) break
-        if (src === n) return self.get(dst, cb)
-        items.push(m)
+        if (src === n) return self.store.get(dst, cb)
+        items.push(src)
       }
-      var next = buf.readUInt16BE(n < median(items) ? 4 : 8)
+      var next = buf.readUInt32BE(n < median(items) ? 4 : 8)
       if (next) get(next)
       else cb(null, buf0)
     })
@@ -70,11 +65,11 @@ Sparse.prototype.put = function (n, buf, opts, cb) {
       if (err) return cb(err)
       if (hbuf.length === 0) {
         hbuf = Buffer(self.size)
-        hbuf.writeUInt16BE(1, 0) // next available chunk
-        hbuf.writeUInt16BE(0, 4) // left
-        hbuf.writeUInt16BE(0, 8) // right
-        hbuf.writeUInt16BE(n, 12) // src: n
-        hbuf.writeUInt16BE(1, 16) // dst: 1
+        hbuf.writeUInt32BE(1, 0) // next available chunk
+        hbuf.writeUInt32BE(0, 4) // left
+        hbuf.writeUInt32BE(0, 8) // right
+        hbuf.writeUInt32BE(n, 12) // src: n
+        hbuf.writeUInt32BE(1, 16) // dst: 1
         return self.store.put(1, buf, opts, function (err) {
           if (err) return release(cb)(err)
           self.store.put(0, hbuf, release(cb))
