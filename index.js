@@ -70,12 +70,18 @@ Sparse.prototype.put = function (n, buf, opts, cb) {
         hbuf.writeUInt32BE(0, 8) // right
         hbuf.writeUInt32BE(n, 12) // src: n
         hbuf.writeUInt32BE(1, 16) // dst: 1
+
         return self.store.put(1, buf, opts, function (err) {
           if (err) return release(cb)(err)
           self.store.put(0, hbuf, release(cb))
         })
       }
-      //...
+      for (var i = 12; i <= hbuf.length - 8; i += 8) {
+        var src = hbuf.readUInt32BE(i)
+        var dst = hbuf.readUInt32BE(i+4)
+        if (dst === 0) break
+        if (src === n) return self.store.put(dst, buf, opts, release(cb))
+      }
       console.log('todo')
     })
   })
