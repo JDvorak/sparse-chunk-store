@@ -129,7 +129,7 @@ Sparse.prototype.put = function (n, buf, opts, cb) {
           if (err) return release(cb)(err)
           self.store.put(index, hbuf, function (err) {
             if (err) return release(cb)(err)
-            index = avail + 1
+            index = avail++
             self.store.get(index, onget)
           })
         })
