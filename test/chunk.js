@@ -9,10 +9,11 @@ var file = path.join(
   'sparse-chunk-store-test-' + Math.random()
 )
 var sp, data = []
+var SIZE = 1000
 
 test('populate chunks', function (t) {
-  t.plan(100)
-  for (var i = 0; i < 100; i++) {
+  t.plan(SIZE)
+  for (var i = 0; i < SIZE; i++) {
     data.push({
       n: Math.floor(Math.random() * Math.pow(2,32)),
       buffer: randomBytes(256)
@@ -32,7 +33,7 @@ test('get chunks', function (t) {
   data.forEach(function (d) {
     sp.get(d.n, function (err, buf) {
       t.ifError(err)
-      t.deepEqual(buf, d.buffer)
+      t.deepEqual(buf, d.buffer, 'n=' + d.n)
     })
   })
 })

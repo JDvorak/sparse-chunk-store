@@ -43,7 +43,9 @@ Sparse.prototype.get = function (n, opts, cb) {
         if (src === n) return self.store.get(dst, cb)
         items.push(src)
       }
-      var next = buf.readUInt32BE(n < median(items) ? 4 : 8)
+      var next = buf.readUInt32BE(
+        (n < median(items) ? 0 : 4) + (ix === 0 ? 4 : 0)
+      )
       if (next) get(next)
       else cb(null, buf0)
     })
@@ -108,18 +110,30 @@ Sparse.prototype.put = function (n, buf, opts, cb) {
 
       // allocate a new index chunk
       var m = median(items)
-      var next = hbuf.readUInt32BE(n < m ? 4 : 8)
+      var next = hbuf.readUInt32BE((n < m ? 0 : 4) + (index === 0 ? 4 : 0))
       if (next) {
         index = next
-        return self.store.get(index, onget)
+        self.store.get(index, onget)
+      } else if (index === 0) {
+        index = avail++
+        first.writeUInt32BE(avail, 0)
+        first.writeUInt32BE(index, n < m ? 4 : 8)
+        self.store.put(0, first, function (err) {
+          if (err) release(cb)(err)
+          else self.store.get(index, onget)
+        })
+      } else {
+        first.writeUInt32BE(avail+1, 0)
+        hbuf.writeUInt32BE(avail, n < m ? 0 : 4)
+        self.store.put(0, first, function (err) {
+          if (err) return release(cb)(err)
+          self.store.put(index, hbuf, function (err) {
+            if (err) return release(cb)(err)
+            index = avail + 1
+            self.store.get(index, onget)
+          })
+        })
       }
-      index = avail++
-      first.writeUInt32BE(avail, 0)
-      first.writeUInt32BE(index, n < m ? 4 : 8)
-      self.store.put(0, first, function (err) {
-        if (err) release(cb)(err)
-        else self.store.get(index, onget)
-      })
     }
   })
 }
