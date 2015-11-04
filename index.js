@@ -79,8 +79,8 @@ Sparse.prototype.put = function (n, buf, opts, cb) {
           hbuf.writeUInt32BE(0, 8) // right
           avail = 2
         } else {
-          hbuf.writeUInt32BE(0, 4) // left
-          hbuf.writeUInt32BE(0, 8) // right
+          hbuf.writeUInt32BE(0, 0) // left
+          hbuf.writeUInt32BE(0, 4) // right
         }
       } else if (index === 0) {
         avail = hbuf.readUInt32BE(0)
