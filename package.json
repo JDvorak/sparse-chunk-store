@@ -8,6 +8,7 @@
     "test": "test"
   },
   "dependencies": {
+    "has": "^1.0.1",
     "inherits": "^2.0.1",
     "lock": "^0.1.2",
     "median": "0.0.2"

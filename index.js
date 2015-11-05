@@ -2,26 +2,42 @@ var inherits = require('inherits')
 var median = require('median')
 var lock = require('lock')
 var EventEmitter = require('events').EventEmitter
+var has = require('has')
 
 var buf0 = Buffer(0)
 
 module.exports = Sparse
 inherits(Sparse, EventEmitter)
 
-function Sparse (size, store) {
+function Sparse (size, store, opts) {
   var self = this
-  if (!(self instanceof Sparse)) return new Sparse(size, store)
+  if (!(self instanceof Sparse)) return new Sparse(size, store, opts)
   if (typeof size === 'object' && size.size) {
+    opts = store
     store = size
     size = store.size
   }
+  if (!opts) opts = {}
   if (size < 20) {
     throw new Error('size must be >= 20')
   }
   self.size = size
+  self.cache = opts.cache ? {} : null
   self.zeros = Buffer(size).fill(0)
   self.store = store
   self.lock = lock()
+}
+
+Sparse.prototype._putTable = function (n, buf, cb) {
+  if (this.cache) this.cache[n] = buf
+  this.store.put(n, buf, cb)
+}
+
+Sparse.prototype._getTable = function (n, cb) {
+  var self = this
+  if (self.cache && has(self.cache, n)) {
+    process.nextTick(function () { cb(null, self.cache[n]) })
+  } else self.store.get(n, cb)
 }
 
 Sparse.prototype.get = function (n, opts, cb) {
@@ -32,7 +48,7 @@ Sparse.prototype.get = function (n, opts, cb) {
   }
   if (!cb) cb = noop
   ;(function get (ix) {
-    self.store.get(ix, function onget (err, buf) {
+    self._getTable(ix, function onget (err, buf) {
       if (err) return cb(err)
       if (buf.length === 0) return cb(null, buf0)
       var items = []
@@ -66,7 +82,7 @@ Sparse.prototype.put = function (n, buf, opts, cb) {
     var index = 0
     var avail = 0
     var first = null
-    self.store.get(index, onget)
+    self._getTable(index, onget)
 
     function onget (err, hbuf) {
       if (err) return cb(err)
@@ -97,9 +113,9 @@ Sparse.prototype.put = function (n, buf, opts, cb) {
           hbuf.writeUInt32BE(avail, i+4)
           return self.store.put(avail, buf, opts, function (err) {
             if (err) return release(cb)(err)
-            self.store.put(0, first, function (err) {
+            self._putTable(0, first, function (err) {
               if (err) return release(cb)(err)
-              self.store.put(index, hbuf, release(cb))
+              self._putTable(index, hbuf, release(cb))
             })
           })
         } else if (src === n) {
@@ -113,24 +129,24 @@ Sparse.prototype.put = function (n, buf, opts, cb) {
       var next = hbuf.readUInt32BE((n < m ? 0 : 4) + (index === 0 ? 4 : 0))
       if (next) {
         index = next
-        self.store.get(index, onget)
+        self._getTable(index, onget)
       } else if (index === 0) {
         index = avail++
         first.writeUInt32BE(avail, 0)
         first.writeUInt32BE(index, n < m ? 4 : 8)
-        self.store.put(0, first, function (err) {
+        self._putTable(0, first, function (err) {
           if (err) release(cb)(err)
-          else self.store.get(index, onget)
+          else self._getTable(index, onget)
         })
       } else {
         first.writeUInt32BE(avail+1, 0)
         hbuf.writeUInt32BE(avail, n < m ? 0 : 4)
-        self.store.put(0, first, function (err) {
+        self._putTable(0, first, function (err) {
           if (err) return release(cb)(err)
-          self.store.put(index, hbuf, function (err) {
+          self._putTable(index, hbuf, function (err) {
             if (err) return release(cb)(err)
             index = avail++
-            self.store.get(index, onget)
+            self._getTable(index, onget)
           })
         })
       }
