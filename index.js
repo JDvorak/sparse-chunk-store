@@ -88,7 +88,7 @@ Sparse.prototype.put = function (n, buf, opts, cb) {
       if (index === 0) first = hbuf
 
       var items = []
-      for (var i = index === 0 ? 12 : 8; i <= hbuf.length - 8; i += 8) {
+      for (var i = index === 0 ? 12 : 8; i < hbuf.length - 8; i += 8) {
         var src = hbuf.readUInt32BE(i)
         var dst = hbuf.readUInt32BE(i+4)
         if (dst === 0) {
