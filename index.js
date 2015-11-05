@@ -5,6 +5,7 @@ var EventEmitter = require('events').EventEmitter
 var has = require('has')
 
 var buf0 = Buffer(0)
+var maxInt32 = Math.pow(2,32) - 1
 
 module.exports = Sparse
 inherits(Sparse, EventEmitter)
@@ -78,6 +79,13 @@ Sparse.prototype.put = function (n, buf, opts, cb) {
   if (buf.length < self.size) {
     buf = Buffer.concat([ buf, self.zeros.slice(0, self.size - buf.length) ])
   }
+  if (n < 0) return nexterr(cb, 'negative value for n in put: n=' + n)
+  else if (isNaN(n) || typeof n !== 'number') {
+    return nexterr(cb, 'n is not a number: n=' + n + ' (' + typeof n + ')')
+  } else if (n > maxInt32) {
+    return nexterr(cb, 'n does not fit in 32 bits: n=' + n)
+  }
+
   self.lock('put', function (release) {
     var index = 0
     var avail = 0
@@ -155,3 +163,8 @@ Sparse.prototype.put = function (n, buf, opts, cb) {
 }
 
 function noop () {}
+
+function nexterr (cb, msg) {
+  var err = new Error(msg)
+  process.nextTick(function () { cb(err) })
+}
