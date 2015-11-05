@@ -20,7 +20,6 @@ test('populate chunks', function (t) {
     })
   }
   sp = sparse(256, fdstore(256, file))
-  var n = Number(process.argv[2])
   data.forEach(function (d) {
     sp.put(d.n, d.buffer, function (err) {
       t.ifError(err)
