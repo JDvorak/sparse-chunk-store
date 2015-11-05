@@ -38,12 +38,14 @@ sp.get(n, function (err, buf) {
 var sparse = require('sparse-chunk-store')
 ```
 
-## var sp = sparse(size, store)
-## var sp = sparse(store)
+## var sp = sparse(size, store, opts)
+## var sp = sparse(store, opts)
 
 Return a sparse chunk store `sp` from a non-sparse chunk store `store`.
 
 If `store.size` is defined, `size` can be omitted as an explicit parameter.
+
+Set `opts.cache` to `true` to buffer index tables in memory for a speed boost.
 
 ## sp.get(index, opts={}, cb)
 
