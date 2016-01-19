@@ -23,6 +23,7 @@ function Sparse (size, store, opts) {
     throw new Error('size must be >= 20')
   }
   self.size = size
+  self.chunkLength = size
   self.cache = opts.cache ? {} : null
   self.zeros = Buffer(size).fill(0)
   self.store = store
